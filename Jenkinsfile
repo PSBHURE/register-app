@@ -7,7 +7,7 @@ pipeline {
     environment {
 	    APP_NAME = "register-app-pipeline"
             RELEASE = "1.0.0"
-            DOCKER_USER = "PRATIKBHURE"
+            DOCKER_USER = "pratikbhure"
             DOCKER_PASS = 'Pratik@8999543425'
             IMAGE_NAME = "${DOCKER_USER}" + "/" + "${APP_NAME}"
             IMAGE_TAG = "${RELEASE}-${BUILD_NUMBER}"
@@ -38,7 +38,8 @@ pipeline {
                  sh "mvn test"
            }
        }
-        stage("SonarQube Analysis"){
+
+       stage("SonarQube Analysis"){
            steps {
 	           script {
 		        withSonarQubeEnv(credentialsId: 'jenkins-sonarqube-token') { 
@@ -47,7 +48,8 @@ pipeline {
 	           }	
            }
        }
-	stage("Quality Gate"){
+
+       stage("Quality Gate"){
            steps {
                script {
                     waitForQualityGate abortPipeline: false, credentialsId: 'jenkins-sonarqube-token'
@@ -55,7 +57,8 @@ pipeline {
             }
 
         }
-	stage("Build & Push Docker Image") {
+
+        stage("Build & Push Docker Image") {
             steps {
                 script {
                     docker.withRegistry('',DOCKER_PASS) {
@@ -71,5 +74,23 @@ pipeline {
 
        }
 
+       stage("Trivy Scan") {
+           steps {
+               script {
+	            sh ('docker run -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image ashfaque9x/register-app-pipeline:latest --no-progress --scanners vuln  --exit-code 0 --severity HIGH,CRITICAL --format table')
+               }
+           }
+       }
+
+       stage ('Cleanup Artifacts') {
+           steps {
+               script {
+                    sh "docker rmi ${IMAGE_NAME}:${IMAGE_TAG}"
+                    sh "docker rmi ${IMAGE_NAME}:latest"
+               }
+          }
+       }
+
     }
+
 }
